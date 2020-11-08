@@ -1,4 +1,3 @@
 int main() {
 	printf ("hello");
-
 }
