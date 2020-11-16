@@ -4,3 +4,12 @@
 
 /.vs/Project/v16
 /.vs
+/.idea/.gitignore
+/De-Bruijn_graph.png
+/graph.dot
+/.idea/misc.xml
+/.idea/modules.xml
+/paper summary.docx
+/.idea/inspectionProfiles/profiles_settings.xml
+/.idea/Project.iml
+/.idea/vcs.xml
