@@ -5,50 +5,19 @@ import os
 from PIL import Image
 
 
-def binaryToDecimal(binary) -> int:
-    binary1 = binary
-    decimal, i, n = 0, 0, 0
-    while (binary != 0):
-        dec = binary % 10
-        decimal = decimal + dec * pow(2, i)
-        binary = binary // 10
-        i += 1
-    return decimal
-
-
 class DeBruijnGraph:
-    def __init__(self):
-        self.n = 0
-        self.N = 0
-        self.edges = []
-        self.nodes = set()
-        self.number_of_nodes = 0
-        self.number_of_edges = 0
-
-    def init_graph(self, st, n):
-        for i in range(len(st) - n + 1):
-            self.edges.append((st[i:i + n - 1], st[i + 1:i + n]))
-            self.number_of_edges += 1
-            self.nodes.add(st[i:i + n - 1])
-            self.nodes.add(st[i + 1:i + n])
-            self.number_of_nodes += 2
-        self.number_of_nodes = len(self.nodes)
-        self.number_of_edges = len(self.edges)
+    def __init__(self, seq, n):
         self.n = n
-        self.N = pow(2, n)
+        self.N = pow(2,n)
+        self.G = nx.DiGraph()
+        for i in range(len(seq) - n + 1):
+            self.G.add_edge(seq[i:i + n - 1], seq[i + 1:i + n]) #adds nodes and edges
 
-    def visualize(self, st, n):
-        self.init_graph(st, n)
-        G = nx.DiGraph()
-        for node in self.nodes:
-            G.add_node(node)
-        for src, dst in self.edges:
-            G.add_edge(src, dst)
+    def print_graph(self):
+        self.G.graph['edge'] = {'arrowsize': '0.6', 'splines': 'curved'}
+        self.G.graph['graph'] = {'scale': '3'}
 
-        G.graph['edge'] = {'arrowsize': '0.6', 'splines': 'curved'}
-        G.graph['graph'] = {'scale': '3'}
-
-        nx.nx_pydot.write_dot(G, 'graph.dot')
+        nx.nx_pydot.write_dot(self.G, 'graph.dot')
         os.system('dot -Tpng graph.dot > De-Bruijn_graph.png')
         graph = Image.open('De-Bruijn_graph.png')
         graph.show()
@@ -60,9 +29,13 @@ class DeBruijnGraph:
     """
 
     # i is an n-1 bit input
-    def exchange(self, i):  # i = 10
-        x = binaryToDecimal(i)
-        print(x)
+    def exchange(self, i) -> nx.DiGraph():
+        x = int(i, 2)  # i
+        y = x + 1  # i + N/2
+        z = x * 2  # 2i
+        w = x * 2 + 1  # 2i +1
+
+        # need to find the correct nodes and edges and then remove the edges and creates new ones in a new graph
 
     def __str__(self):
         res = 'There are ' + str(G.number_of_nodes) + ' nodes and ' + str(G.number_of_edges) + ' edges in G.'
@@ -101,7 +74,9 @@ if __name__ == '__main__':
     else:
         sequence = '000001000110010100111010110111110000'
 
-    G = DeBruijnGraph()
-    G.exchange(10)
+    G = DeBruijnGraph(sequence, n)
+    G.print_graph()
+    exit(0)
+    G.exchange('10')
     G.visualize(sequence, n)
     print(G)
