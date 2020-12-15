@@ -41,40 +41,102 @@ class Graph:
         self.N = 0
         self.G = nx.DiGraph()
         # remember to change to False after exchanging edges or creating the line graph.
-        self.is_de_bruijn = False
-        self.is_line_graph = False
 
-    def create_line_graph(self):
+    def plot(self, filename='graph'):
+        f = Digraph(filename=filename + '.gv')  # Digraph (name, filename to save)
+        f.attr(rankdir='LR', size='8,5')  # horizontal and not vertical
+        f.attr('node', shape='circle')
+        edge_label = None
+        for e in self.G.edges():
+            if isinstance(self, DeBruijnGraph):
+                u = bin(e[0])[2:].zfill(self.n)
+                v = bin(e[1])[2:].zfill(self.n)
+                edge_label = u + v[-1]
+            elif isinstance(self, LineGraph):  # is a line graph
+                u0 = bin(e[0][0])[2:].zfill(self.n)
+                u1 = bin(e[0][1])[2:].zfill(self.n)
+                v0 = bin(e[1][0])[2:].zfill(self.n)
+                v1 = bin(e[1][1])[2:].zfill(self.n)
+                u = u0 + u1[-1]
+                v = v0 + v1[-1]
+            f.edge(u, v, label=edge_label)  # can add labels = name that WILL BE DISPLAYED on the edges
+        f.view()
+
+    def create_quadruple(self, edge) -> list:
+        """
+        # v1 -> u1  a
+        #   X    \b,   /c
+        # v2 -> u2  d
+        @param edge:
+        @return: quadruple of a,b,c,d as a list
+        """
+
+        a = edge  # v1->u1
+        v1 = a[0]
+        u1 = a[1]
+        b, c = (None, None)
+
+        for e in self.G.edges():
+            if e[0] == v1 and e[1] != u1:  # find the other edge coming from v1
+                b = e
+                u2 = e[1]
+            if e[0] != v1 and e[1] == u1:  # find the other edge entering u2
+                c = e
+                v2 = e[0]
+
+        if b is None or c is None:
+            raise ValueError
+        d = (v2, u2)
+        return [a, b, c, d]
+
+    def find_quadruples(self) -> None:  # return a list of all the quadruples
+        """
+        This method finds all the quadruples and inserts them to a list.
+        @rtype: None
+        """
+        for e in self.G.edges():
+            quad = self.create_quadruple(e)
+            tmp = self.quadruples.copy()
+            t = [q for q in tmp if set(quad) == set(q)]  # maybe there is a better way?
+            # we try to find all the matching quadruples to tmp. If it is empty, we add tmp.
+            if 0 == len(t):
+                self.quadruples.append(quad)
+
+    def find_decompositions(self) -> None:
+        raise NotImplementedError
+
+    def single_circle_decompositions(self) -> int:
+        raise NotImplementedError
+
+    def num_size_k_cycles_in_a_decomposition(self, k: int) -> int:
+        raise NotImplementedError
+
+    def num_size_k_cycles_in_all_decompositions(self, k: int) -> int:
+        raise NotImplementedError
+
+    def print_decomposition(self):
+        raise NotImplementedError
+
+    def print_specific_decompositions(self):
+        raise NotImplementedError
+
+    def print_all_decompositions(self) -> None:
+        raise NotImplementedError
+
+
+class LineGraph(Graph):
+    def __init__(self, g: Graph):
         """
         This method creates the line graph from any given (Di)Graph.
         :rtype: object
         """
-        g_line_graph = Graph()
-        g_line_graph.G = nx.DiGraph(nx.line_graph(self.G))
-        g_line_graph.n = self.n  # just for the tuples
-        g_line_graph.is_de_bruijn = False
-        g_line_graph.is_line_graph = True
-        return g_line_graph
-
-    def plot(self, filename='graph'):
-        # format(14, '08b') turns 14 to binary with 8 bits, with 0 padding: 00001110
-        f = Digraph(filename=filename + '.gv')  # Digraph (name, filename to save)
-        f.attr(rankdir='LR', size='8,5')  # horizontal and not vertical
-        # assume no labels, just simple printing
-        f.attr('node', shape='circle')
-        for e in self.G.edges():
-            if not self.is_line_graph:
-                formatted_u = format(e[0], '0' + str(self.n) + 'b')
-                formatted_v = format(e[1], '0' + str(self.n) + 'b')
-            else: # is a line graph
-                formatted_u_0 = format(e[0][0], '0' + str(self.n) + 'b')
-                formatted_u_1 = format(e[0][1], '0' + str(self.n) + 'b')
-                formatted_v_0 = format(e[1][0], '0' + str(self.n) + 'b')
-                formatted_v_1 = format(e[1][1], '0' + str(self.n) + 'b')
-                formatted_u = formatted_u_0 + ', ' + formatted_u_1
-                formatted_v = formatted_v_0 + ', ' + formatted_v_1
-            f.edge(formatted_u, formatted_v, label=None)  # can add labels = name that WILL BE DISPLAYED on the edges
-        f.view()
+        super().__init__()
+        self.n = g.n
+        self.k = g.k
+        self.N = g.N
+        self.G = nx.DiGraph(nx.line_graph(g.G))
+        self.quadruples = []
+        self.find_quadruples()
 
 
 class DeBruijnGraph(Graph):
@@ -90,8 +152,6 @@ class DeBruijnGraph(Graph):
         kmers = self.get_kmers_from_sequence(sequence, self.k)
         edges = self.get_edges_from_kmers(kmers)
         self.G = nx.DiGraph(edges)
-        self.is_de_bruijn = True
-        self.is_line_graph = False
         # note: we no longer add ids to edges, we need to find the actual nodes.
         # when we need to print the edges, we will generate them manually.
         # it may be slower, need to think about it.
@@ -161,7 +221,7 @@ class DeBruijnGraph(Graph):
     def exchange(self, i: str) -> None:
         """
         This method receives a binary number and executes the exchange function.
-        :param i: first n-1 bits of node to perform the exchange operation on.
+        :param i: last n-1 bits of node to perform the exchange operation on.
         """
         # check that there were given n-1 bits
         assert (isinstance(i, str))
@@ -170,8 +230,8 @@ class DeBruijnGraph(Graph):
 
         N = self.N
         # we convert the binary representation to decimal
-        x1 = int(i, 2)  # i
-        x2 = int('1' + i, 2)  # i+N/2
+        x1 = int(i, 2)  # i '0i'
+        x2 = int('1' + i, 2)  # i+N/2 '1i'
         y1 = (2 * x1) % N  # 2i
         y2 = (2 * x1 + 1) % N  # 2i+1
         z1 = (2 * y1) % N  # 4i
@@ -183,15 +243,21 @@ class DeBruijnGraph(Graph):
         # first we remove 2i->4i and 2i+1->4i+2
         # work around since G doesn't save the nodes with 0b literal - iterating over all edges and comparing.
         for e in self.G.edges():
-            if (e == (y1, z1)) or (e == (y2, z3)):
+            if e == (y1, z1):
+                # todo: store edge ID
+                self.G.remove_edge(*e)
+                break
+        for e in self.G.edges():
+            if e == (y2, z3):
+                # todo: store edge ID
                 self.G.remove_edge(*e)
                 break
 
         # next we add 2i->4i+2 and 2i+1->4i  # todo: problem, how do we define names for 2i->4i+2? It's not De-Bruijn like.
         edge_to_add = (y1, z3)
-        self.G.add_edge(*edge_to_add)
+        self.G.add_edge(*edge_to_add, id='hello')  # todo: add the id saved
         edge_to_add = (y2, z1)
-        self.G.add_edge(*edge_to_add)
+        self.G.add_edge(*edge_to_add, id='bye')  # todo: add the id saved
         # not a de-bruijn graph anymore
         self.is_de_bruijn = False
 
@@ -226,13 +292,10 @@ if __name__ == '__main__':
 
     seq = create_de_bruijn_sequence(n)
     DBG = DeBruijnGraph(seq, n)
-    # DBG.plot('DBG')
-
-    line_graph = DBG.create_line_graph()
-    # line_graph.plot('line graph before')
-
-    DBG.exchange('10')
-    # DBG.plot('DBG after exchange')
-
-    # line_graph = DBG.create_line_graph()
-    # line_graph.plot('line graph after')
+    DBG.plot('DBG')
+    line_graph = LineGraph(DBG)
+    line_graph.plot('line graph before exchange on DBG.')
+    exit(0)
+    DBG.exchange('1')
+    line_graph = LineGraph(DBG)
+    line_graph.plot('line graph after exchange on DBG.')
