@@ -116,7 +116,7 @@ class Graph:
         for i in range(0, 2 ** (2 ** self.input_n)):  # index of the decomposition from 0 to 65,536
             bin_i = bin(i)[2:].zfill(2 ** self.input_n)
             current_decomposition = []  # the i-th decomposition
-            for quad, j in zip(self.quadruples, bin_i.__iter__()):  # 2^n iterations
+            for quad, j in zip(self.quadruples, bin_i):  # 2^n iterations
                 if '0' == j:
                     current_decomposition.append(quad[0])
                     current_decomposition.append(quad[3])
@@ -336,8 +336,6 @@ if __name__ == '__main__':
     # DBG.plot('DBG')
     line_graph = LineGraph(DBG)
     line_graph.find_decompositions()
-    print(len(line_graph.decompositions))
-    exit(0)
     line_graph.plot('line graph before exchange on DBG.')
     exit(0)
     DBG.exchange('1')
