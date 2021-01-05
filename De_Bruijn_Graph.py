@@ -36,11 +36,11 @@ class Graph:
     """
 
     def __init__(self):
-        self.n = 0
-        self.k = 0
-        self.N = 0
+        self.n = 0  # length of node representation
+        self.input_n = 0  # original length of node representation to be used in L(G)
+        self.k = 0  # length of edge representation
+        self.N = 0  # number of nodes
         self.G = nx.DiGraph()
-        # remember to change to False after exchanging edges or creating the line graph.
 
     def plot(self, filename='graph'):
         f = Digraph(filename=filename + '.gv')  # Digraph (name, filename to save)
@@ -110,9 +110,37 @@ class Graph:
         the number quadruples in the line graph, is half the number of vertixes in the line graph - so the number of quadruples in the line graph equal to the number
         of the edges in the original graph (n) = half of line_graph's number of vertices.
         :return:
-
+        number of decompositions = 2**(2**self.n)
         """
-        raise NotImplementedError
+        # quad = [a b c d] and we need to choose a+d or b+c
+        for i in range(0, 2 ** (2 ** self.input_n)):  # index of the decomposition from 0 to 65,536
+            bin_i = bin(i)[2:].zfill(2 ** self.input_n)
+            current_decomposition = []  # the i-th decomposition
+            for quad, j in zip(self.quadruples, bin_i.__iter__()):  # 2^n iterations
+                if '0' == j:
+                    current_decomposition.append(quad[0])
+                    current_decomposition.append(quad[3])
+                else:
+                    current_decomposition.append(quad[1])
+                    current_decomposition.append(quad[2])
+            self.decompositions.append(current_decomposition)
+
+    def gen_strings(self, n, arr, i):
+        if i == n:
+            return
+
+        # First assign "0" at ith position
+        # and try for all other permutations
+        # for remaining positions
+        arr[i] = 0
+        # [1 ,0, 0, 0]
+        self.gen_strings(n, arr, i + 1)
+
+        # And then assign "1" at ith position
+        # and try for all other permutations
+        # for remaining positions
+        arr[i] = 1
+        self.gen_strings(n, arr, i + 1)
 
     def single_circle_decompositions(self) -> int:
         raise NotImplementedError
@@ -140,12 +168,15 @@ class LineGraph(Graph):
         :rtype: object
         """
         super().__init__()
-        self.n = g.n
-        self.k = g.k
-        self.N = g.N
+        self.n = g.n + 1
+        self.k = self.n + 1
+        self.N = 2 * g.N
+        # TODO: check above
+        self.input_n = g.input_n
         self.G = nx.DiGraph(nx.line_graph(g.G))
         self.quadruples = []
         self.find_quadruples()
+        self.decompositions = []
 
 
 class DeBruijnGraph(Graph):
@@ -156,6 +187,7 @@ class DeBruijnGraph(Graph):
         """
         super().__init__()
         self.n = n  # number of bits of each node
+        self.input_n = n
         self.k = n + 1
         self.N = 2 ** (self.n)  # number of nodes
         kmers = self.get_kmers_from_sequence(sequence, self.k)
@@ -301,8 +333,11 @@ if __name__ == '__main__':
 
     seq = create_de_bruijn_sequence(n)
     DBG = DeBruijnGraph(seq, n)
-    DBG.plot('DBG')
+    # DBG.plot('DBG')
     line_graph = LineGraph(DBG)
+    line_graph.find_decompositions()
+    print(len(line_graph.decompositions))
+    exit(0)
     line_graph.plot('line graph before exchange on DBG.')
     exit(0)
     DBG.exchange('1')
