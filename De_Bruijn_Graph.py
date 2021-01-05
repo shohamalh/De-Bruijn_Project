@@ -103,6 +103,15 @@ class Graph:
                 self.quadruples.append(quad)
 
     def find_decompositions(self) -> None:
+        """
+        in normal graph, the edges and the vertices have names. in the line graph, only the vertices have names,
+        and the names are the names of the edges they came from.
+        the number of vertices in the line graph is double the number of vertices in the normal graph becase there are 2 outgoing edges from each vertix in the original one.
+        the number quadruples in the line graph, is half the number of vertixes in the line graph - so the number of quadruples in the line graph equal to the number
+        of the edges in the original graph (n) = half of line_graph's number of vertices.
+        :return:
+
+        """
         raise NotImplementedError
 
     def single_circle_decompositions(self) -> int:
