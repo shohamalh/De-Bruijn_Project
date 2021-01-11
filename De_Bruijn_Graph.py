@@ -1,5 +1,6 @@
 import networkx as nx
 from graphviz import Digraph
+from xlsxwriter import Workbook
 
 
 def create_de_bruijn_sequence(k) -> str:
@@ -46,10 +47,10 @@ class Graph:
     def plot(self, filename='graph'):
         f = Digraph(filename=filename + '.gv')  # Digraph (name, filename to save)
         f.attr(rankdir='LR', size='8,5')  # horizontal and not vertical
-        f.attr('node', shape='circle')
+        f.attr('node', shape='cycle')
         edge_label = None
-        for e in self.G.edges():  # choses an edge from the _____ graph every iteration
-            if isinstance(self, DeBruijnGraph):  # if the graph is debruijn
+        for e in self.G.edges():
+            if isinstance(self, DeBruijnGraph):  # if the graph is de-bruijn
                 u = bin(e[0])[2:].zfill(self.n)  #
                 v = bin(e[1])[2:].zfill(self.n)
                 edge_label = u + v[-1]  # creates the edge label by combining the names of the vertices
@@ -81,6 +82,13 @@ class Graph:
         self.gen_strings(n, arr, i + 1)
 
 
+def _is_cycle_in_list(cycle_list, cycle) -> bool:
+    for i in cycle_list:
+        if set(i).__eq__(set(cycle)):
+            return True
+    return False
+
+
 class LineGraph(Graph):
     def __init__(self, g: Graph):
         """
@@ -99,21 +107,20 @@ class LineGraph(Graph):
         self.decompositions = []
         self._find_decompositions()  # 2. find all decompositions.
         """
-        decompositions_with_circles is a list of tuples:
-        (current_decomposition_with_circles, circles_in_each_length_in_decomposition).
-        current_decomposition_with_circles is a list of all the circles in the decomposition.
-        circles_in_each_length_in_decomposition is a list in size |E|, and the [i] place has the number of the 
-        circles with the length of i+1 (the first place is [0] - has the number of circles with length 1)
+        decompositions_with_cycles is a list of tuples:
+        (current_decomposition_with_cycles, cycles_in_each_length_in_decomposition).
+        current_decomposition_with_cycles is a list of all the cycles in the decomposition.
+        cycles_in_each_length_in_decomposition is a list in size |E|, and the [i] place has the number of the 
+        cycles with the length of i+1 (the first place is [0] - has the number of cycles with length 1)
         """
-        self.decompositions_with_circles = []
+        self.decompositions_with_cycles = []
         """
-        unique_circles_in_each_length is a list in size |E|, and the [i] place is a Set that has all the 
-        circles (a circle is a list) with the length of i+1 (the first place is [0] - has all the circles with length 1)
-        ***but the circles in each set are sorted by sort function, so they are not in the order of the circle!!!!!***
+        unique_cycles_in_each_length is a list in size |E|, and the [i] place is a Set that has all the 
+        cycles (a cycle is a list) with the length of i+1 (the first place is [0] - has all the cycles with length 1)
+        ***but the cycles in each set are sorted by sort function, so they are not in the order of the cycle!!!!!***
         """
-        # self.unique_circles_in_each_length = [None] * self.E
-        self.unique_circles_in_each_length = [[] for _ in range(int(self.E / 2))]
-        self._find_decompositions_circles()  # 3. find all circles in decompositions.
+        self.unique_cycles_in_each_length = [[] for _ in range(int(self.E / 2))]
+        self._find_decompositions_cycles()  # 3. find all cycles in decompositions.
 
     # private methods
 
@@ -162,8 +169,8 @@ class LineGraph(Graph):
         in normal graph, the edges and the vertices have names. in the line graph, only the vertices have names,
         and the names are the names of the edges they came from.
         the number of vertices in the line graph is double the number of vertices in the normal graph because there are 2
-         outgoing edges from each vertix in the original one.
-        the number quadruples in the line graph, is half the number of vertixes in the line graph -
+         outgoing edges from each vertex in the original one.
+        the number quadruples in the line graph, is half the number of vertices in the line graph -
         so the number of quadruples in the line graph equal to the number
         of the edges in the original graph (n) = half of line_graph's number of vertices.
         :return:
@@ -182,94 +189,109 @@ class LineGraph(Graph):
                     current_decomposition.append(quad[2])
             self.decompositions.append(current_decomposition)
 
-    def _is_circle_in_list(self, circle_list, circle) -> bool:
-        for i in circle_list:
-            if set(i).__eq__(set(circle)):
-                return True
-        return False
-
-    def _find_decompositions_circles(self) -> None:
+    def _find_decompositions_cycles(self) -> None:
         """
         choosing 1 decomposition at a time. decomposition is made out of edges: tuples of (v1,v2), so choosing the first
-         edge for the current circle, running on all the edges and every time i add 1 to a circle, remove it from the
-          list of edges left. then go to the next circle. until no more edges are left.
+         edge for the current cycle, running on all the edges and every time i add 1 to a cycle, remove it from the
+          list of edges left. then go to the next cycle. until no more edges are left.
         :return:
-        sdfas
         """
         for decomp in self.decompositions:  # choosing 1 decomposition
-            current_decomposition_with_circles = []
-            circles_in_each_length_in_decomposition = [0] * len(decomp)  # creating a list with 0's the size of |E|
+            current_decomposition_with_cycles = []
+            cycles_in_each_length_in_decomposition = [0] * len(decomp)  # creating a list with 0's the size of |E|
             current_decomposition = decomp.copy()  # copying the current decomposition so i can remove edges
-            while len(current_decomposition) > 0:  # as long as i didnt finish mapping the edges into circles
-                current_circle = [current_decomposition[0]]  # starting to find the circle of the current first edge
-                current_decomposition.pop(0)  # removing the edge after adding it to the circle
-                current_circle_length = 1
-                added_an_edge_to_circle = True
-                while added_an_edge_to_circle:  # stop looking for the next edge in circle if we didnt found an edge now
-                    added_an_edge_to_circle = False
+            while len(current_decomposition) > 0:  # as long as i didnt finish mapping the edges into cycles
+                current_cycle = [current_decomposition[0]]  # starting to find the cycle of the current first edge
+                current_decomposition.pop(0)  # removing the edge after adding it to the cycle
+                current_cycle_length = 1
+                added_an_edge_to_cycle = True
+                while added_an_edge_to_cycle:  # stop looking for the next edge in cycle if we didnt found an edge now
+                    added_an_edge_to_cycle = False
                     for edge in current_decomposition:
-                        if current_circle[-1][1] == edge[0]:
-                            current_circle.append(edge)  # add the next edge to the circle
-                            current_decomposition.remove(edge)  # remove the edge from list because we added to circle
-                            current_circle_length += 1  # increase the length of the current circle in 1
-                            added_an_edge_to_circle = True
-                            break  # we have found the next edge in the current circle
-                # we finished finding the current circle
-                current_decomposition_with_circles.append(current_circle)
-                # add 1 to the num of circles this length
-                circles_in_each_length_in_decomposition[current_circle_length - 1] += 1
-                # adds the circle in sorted mode so the set of the specific length will not add it if its already there:
-                if not self._is_circle_in_list \
-                            (self.unique_circles_in_each_length[current_circle_length - 1], current_circle):
-                    self.unique_circles_in_each_length[current_circle_length - 1].append(current_circle)
-            # we finished finding all the circles for the current decomposition
-            t = (current_decomposition_with_circles, circles_in_each_length_in_decomposition)
-            self.decompositions_with_circles.append(t)
-        print("done")
+                        if current_cycle[-1][1] == edge[0]:
+                            current_cycle.append(edge)  # add the next edge to the cycle
+                            current_decomposition.remove(edge)  # remove the edge from list because we added to cycle
+                            current_cycle_length += 1  # increase the length of the current cycle in 1
+                            added_an_edge_to_cycle = True
+                            break  # we have found the next edge in the current cycle
+                # we finished finding the current cycle
+                current_decomposition_with_cycles.append(current_cycle)
+                # add 1 to the num of cycles this length
+                cycles_in_each_length_in_decomposition[current_cycle_length - 1] += 1
+                # adds the cycle in sorted mode so the set of the specific length will not add it if its already there:
+                if not _is_cycle_in_list(self.unique_cycles_in_each_length[current_cycle_length - 1], current_cycle):
+                    self.unique_cycles_in_each_length[current_cycle_length - 1].append(current_cycle)
+            # we finished finding all the cycles for the current decomposition
+            t = (current_decomposition_with_cycles, cycles_in_each_length_in_decomposition)
+            self.decompositions_with_cycles.append(t)
 
-    def _all_circles_in_length(self, length) -> int:
-        return len(self.unique_circles_in_each_length[length - 1])
+    def _all_cycles_in_length(self, length) -> int:
+        return len(self.unique_cycles_in_each_length[length - 1])
 
-    def _print_circle_in_binary(self, circle: list) -> None:  # line_graph printing
-        for e in circle:
+    def _print_cycle_in_binary(self, cycle: list) -> None:  # line_graph printing
+        first_node = cycle[0]
+        f0 = bin(first_node[0][0])[2:].zfill(self.n - 1)
+        f1 = bin(first_node[0][1])[2:].zfill(self.n - 1)
+        f = f0 + f1[-1]
+        for e in cycle:
             u0 = bin(e[0][0])[2:].zfill(self.n - 1)
             u1 = bin(e[0][1])[2:].zfill(self.n - 1)
             u = u0 + u1[-1]
             print(u + ' -->', end=' ')
+        print(f)
 
     # public methods
 
-    def number_of_decompositions_with_only_one_circle(self) -> int:
+    def print_number_of_decompositions_with_only_one_cycle(self) -> None:
         counter = 0
-        for curr_decomposition_with_circles in self.decompositions_with_circles:
-            if curr_decomposition_with_circles[1][-1] == 1:  # if it has a circle in size |E|
+        for curr_decomposition_with_cycles in self.decompositions_with_cycles:
+            if curr_decomposition_with_cycles[1][-1] == 1:  # if it has a cycle in size |E|
                 counter += 1
-        return counter
+        print("There are", counter, "decompositions with only one cycle.")
 
-    def print_all_circles_in_length(self, length) -> None:
-        print("The number of unique circles with length ", length, "is ", self._all_circles_in_length(length),
-              "\n And they are:")
-        for circle in self.unique_circles_in_each_length[length - 1]:
-            self._print_circle_in_binary(circle)
+    def print_all_cycles_in_length(self, length) -> None:
+        print("The number of unique cycles with length", length, "is", self._all_cycles_in_length(length),
+              "and they are:")
+        for cycle in self.unique_cycles_in_each_length[length - 1]:
+            self._print_cycle_in_binary(cycle)
 
-    def print_all_decompositions_circles_sizes(self) -> None:
-        for decomp, i in zip(self.decompositions_with_circles, range(len(self.decompositions_with_circles))):
-            print("Decomposition #" + str(i + 1).zfill(len(str(2 ** 2 ** self.input_n))) + ": ",
-                  print(*decomp[1], sep=", "))
+    def print_all_decompositions_cycles_sizes(self) -> None:
+        headers = {  # Dictionary for the columns of the .xlsx
+            #  Decomposition Number, (Number of cycles of) Length 1, Length 2, ...
+            'decomposition': 'Decomposition number',
+        }
 
-            # Todo: print the dcompositions accordint to the list "input_decompositions_numbers"
-            #  from self.decompositions_with_circles[0]
-            # Todo: print in an organized manner both print parts in this function
-            #  (first one maybe in a table, second maybe show graph)
+        rows = []
+        for decomp, i in zip(self.decompositions_with_cycles, range(len(self.decompositions_with_cycles))):
+            t = {'decomposition': i + 1}
+            for j in range(len(self.unique_cycles_in_each_length)):
+                headers['cycle_num_' + str(j + 1)] = 'Cycle length = ' + str(j + 1)
+                t['cycle_num_' + str(j + 1)] = decomp[1][j - 1]
+            rows.append(t)
+
+        # print("Decomposition #", str(i + 1).zfill(len(str(2 ** 2 ** self.input_n))), ":", *decomp[1])
+        with Workbook('decompositions.xlsx') as workbook:
+            worksheet = workbook.add_worksheet()
+            worksheet.write_row(row=0, col=0, data=headers.values())
+            header_keys = list(headers.keys())
+            for index, item in enumerate(rows):
+                row = map(lambda field_id: item.get(field_id, ''), header_keys)
+                worksheet.write_row(row=index + 1, col=0, data=row)
 
     def print_decomposition(self, i) -> None:
-        print("The circles in decomposition number " + str(i) + " are:")
-        for circle in self.decompositions_with_circles[i - 1][0]:
-            print(*circle)
+        """
+        prints all the edges in the i-th decomposition. assume i < |decompositions|
+        :param i: the i-th decomposition to print.
+        :return: prints the i-th decomposition.
+        """
+        assert i < len(self.decompositions_with_cycles)
+        print("The cycles in decomposition number", i, "are:")
+        for cycle in self.decompositions_with_cycles[i - 1][0]:
+            self._print_cycle_in_binary(cycle)
 
     def print_specific_decompositions(self) -> None:
         input_decompositions_numbers = [int(item) for item in input(
-            "Please enter, in the next line, all the numbers of the decompositions you wish to print: ").split()]
+            "Please enter all the numbers of the decompositions you wish to print, separated by blanks.\n").split()]
         for i in input_decompositions_numbers:
             self.print_decomposition(i)
 
@@ -402,8 +424,11 @@ if __name__ == '__main__':
     # DBG.plot('DBG')
     line_graph = LineGraph(DBG)
     # line_graph.plot('line graph before exchange on DBG.')
-    print("number_of_decompositions_with_only_one_circle")
-    print(line_graph.print_specific_decompositions())
+    # line_graph.print_number_of_decompositions_with_only_one_cycle()
+    # line_graph.print_all_cycles_in_length(2)
+    line_graph.print_all_decompositions_cycles_sizes()
+    # line_graph.print_decomposition(11)
+    # line_graph.print_specific_decompositions()
     exit(1)
     print('Please enter the sequence kmer length.\n')
     while True:
