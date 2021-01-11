@@ -92,9 +92,6 @@ class Graph:
     def print_decomposition(self):
         raise NotImplementedError
 
-    def print_specific_decompositions(self):
-        raise NotImplementedError
-
     def print_all_decompositions(self) -> None:
         raise NotImplementedError
 
@@ -236,6 +233,9 @@ class LineGraph(Graph):
                 counter += 1
         return counter
 
+    def all_circles_in_length(self, length) -> int:
+        return len(self.unique_circles_in_each_length[length - 1])
+
     def print_all_circles_in_length(self, length) -> None:
         print("The number of unique circles with length ", length, "is ", len(self.unique_circles_in_each_length[length - 1]))
         print("And they are:")
@@ -245,8 +245,6 @@ class LineGraph(Graph):
     def print_all_decompositions_circles_sizes(self) -> None:
         for decomp, i in zip(self.decompositions_with_circles, range(len(self.decompositions_with_circles))):
             print("Decomposition #", str(i+1).zfill(len(str(2**2**self.input_n))), ": ", print(*decomp[1], sep=", "))
-            input_decompositions_numbers = [int(item) for item in input(
-                "Please enter, in the next line, all the numbers of the decompositions you wish to print: ").split()]
             # input_decompositions_numbers = []
             # number = int(input("Please enter the numbers of the decompositions you wish to print: "))
             # print("Please enter the number of total decompositions you wish to print:")
@@ -269,9 +267,16 @@ class LineGraph(Graph):
 
             # Todo: print in an organized manner both print parts in this function (first one maybe in a table, second maybe show graph)
 
+    def print_decomposition(self, i) -> None:
+        print("The circles in the ", str(i), "-th decomposition are:")
+        for circle in self.decompositions_with_circles[i-1][0]:
+            print(*circle)
 
-
-
+    def print_specific_decompositions(self):
+        input_decompositions_numbers = [int(item) for item in input(
+            "Please enter, in the next line, all the numbers of the decompositions you wish to print: ").split()]
+        for i in input_decompositions_numbers:
+            self.print_decomposition(i)
 
 
 class DeBruijnGraph(Graph):
