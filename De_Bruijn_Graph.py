@@ -48,16 +48,16 @@ class Graph:
         f.attr(rankdir='LR', size='8,5')  # horizontal and not vertical
         f.attr('node', shape='circle')
         edge_label = None
-        for e in self.G.edges():
-            if isinstance(self, DeBruijnGraph):
-                u = bin(e[0])[2:].zfill(self.n)
+        for e in self.G.edges():  # choses an edge from the _____ graph every iteration
+            if isinstance(self, DeBruijnGraph):  # if the graph is debruijn
+                u = bin(e[0])[2:].zfill(self.n)  #
                 v = bin(e[1])[2:].zfill(self.n)
-                edge_label = u + v[-1]
+                edge_label = u + v[-1]  # creates the edge label by combining the names of the vertices
             elif isinstance(self, LineGraph):  # is a line graph
-                u0 = bin(e[0][0])[2:].zfill(self.n)
-                u1 = bin(e[0][1])[2:].zfill(self.n)
-                v0 = bin(e[1][0])[2:].zfill(self.n)
-                v1 = bin(e[1][1])[2:].zfill(self.n)
+                u0 = bin(e[0][0])[2:].zfill(self.n - 1)
+                u1 = bin(e[0][1])[2:].zfill(self.n - 1)
+                v0 = bin(e[1][0])[2:].zfill(self.n - 1)
+                v1 = bin(e[1][1])[2:].zfill(self.n - 1)
                 u = u0 + u1[-1]
                 v = v0 + v1[-1]
             f.edge(u, v, label=edge_label)  # can add labels = name that WILL BE DISPLAYED on the edges
@@ -80,21 +80,6 @@ class Graph:
         arr[i] = 1
         self.gen_strings(n, arr, i + 1)
 
-    def single_circle_decompositions(self) -> int:
-        raise NotImplementedError
-
-    def num_size_k_cycles_in_a_decomposition(self, k: int) -> int:
-        raise NotImplementedError
-
-    def num_size_k_cycles_in_all_decompositions(self, k: int) -> int:
-        raise NotImplementedError
-
-    def print_decomposition(self):
-        raise NotImplementedError
-
-    def print_all_decompositions(self) -> None:
-        raise NotImplementedError
-
 
 class LineGraph(Graph):
     def __init__(self, g: Graph):
@@ -103,16 +88,16 @@ class LineGraph(Graph):
         :rtype: object
         """
         super().__init__()
-        self.n = g.n + 1 # length of node representation
-        self.k = self.n + 1# length of edge representation
-        self.N = 2 * g.N  # number of Nodes
-        self.E = g.N # number of Edges of line graph is equal to the number of Nodes in original graph
-        # TODO: check above
-        self.input_n = g.input_n
         self.G = nx.DiGraph(nx.line_graph(g.G))
+        self.input_n = g.input_n
+        self.n = g.n + 1  # length of node representation
+        self.k = self.n + 1  # length of edge representation
+        self.N = self.G.number_of_nodes()
+        self.E = self.G.number_of_edges()
         self.quadruples = []
-        self.find_quadruples()
+        self._find_quadruples()  # 1. find all quadruples.
         self.decompositions = []
+        self._find_decompositions()  # 2. find all decompositions.
         """
         decompositions_with_circles is a list of tuples:
         (current_decomposition_with_circles, circles_in_each_length_in_decomposition).
@@ -127,9 +112,12 @@ class LineGraph(Graph):
         ***but the circles in each set are sorted by sort function, so they are not in the order of the circle!!!!!***
         """
         # self.unique_circles_in_each_length = [None] * self.E
-        self.unique_circles_in_each_length = [set() for _ in range(self.E)]
+        self.unique_circles_in_each_length = [[] for _ in range(int(self.E / 2))]
+        self._find_decompositions_circles()  # 3. find all circles in decompositions.
 
-    def create_quadruple(self, edge) -> list:
+    # private methods
+
+    def _create_quadruple(self, edge) -> list:
         """
         # v1 -> u1  a
         #   X    \b,   /c
@@ -156,25 +144,27 @@ class LineGraph(Graph):
         d = (v2, u2)
         return [a, b, c, d]
 
-    def find_quadruples(self) -> None:  # return a list of all the quadruples
+    def _find_quadruples(self) -> None:  # return a list of all the quadruples
         """
         This method finds all the quadruples and inserts them to a list.
         @rtype: None
         """
         for e in self.G.edges():
-            quad = self.create_quadruple(e)
+            quad = self._create_quadruple(e)
             tmp = self.quadruples.copy()
             t = [q for q in tmp if set(quad) == set(q)]  # maybe there is a better way?
             # we try to find all the matching quadruples to tmp. If it is empty, we add tmp.
             if 0 == len(t):
                 self.quadruples.append(quad)
 
-    def find_decompositions(self) -> None:
+    def _find_decompositions(self) -> None:
         """
         in normal graph, the edges and the vertices have names. in the line graph, only the vertices have names,
         and the names are the names of the edges they came from.
-        the number of vertices in the line graph is double the number of vertices in the normal graph becase there are 2 outgoing edges from each vertix in the original one.
-        the number quadruples in the line graph, is half the number of vertixes in the line graph - so the number of quadruples in the line graph equal to the number
+        the number of vertices in the line graph is double the number of vertices in the normal graph because there are 2
+         outgoing edges from each vertix in the original one.
+        the number quadruples in the line graph, is half the number of vertixes in the line graph -
+        so the number of quadruples in the line graph equal to the number
         of the edges in the original graph (n) = half of line_graph's number of vertices.
         :return:
         number of decompositions = 2**(2**self.n)
@@ -192,11 +182,17 @@ class LineGraph(Graph):
                     current_decomposition.append(quad[2])
             self.decompositions.append(current_decomposition)
 
-    def find_decompositions_circles(self) -> None:
+    def _is_circle_in_list(self, circle_list, circle) -> bool:
+        for i in circle_list:
+            if set(i).__eq__(set(circle)):
+                return True
+        return False
+
+    def _find_decompositions_circles(self) -> None:
         """
-        choosing 1 decomposition at a time. decomposition is made out of edges: tuples of (v1,v2), so choosing the first edge for
-        the current circle, running on all the edges and every time i add 1 to a circle, remove it from the list of
-        edges left. then go to the next circle. until no more edges are left.
+        choosing 1 decomposition at a time. decomposition is made out of edges: tuples of (v1,v2), so choosing the first
+         edge for the current circle, running on all the edges and every time i add 1 to a circle, remove it from the
+          list of edges left. then go to the next circle. until no more edges are left.
         :return:
         sdfas
         """
@@ -220,11 +216,28 @@ class LineGraph(Graph):
                             break  # we have found the next edge in the current circle
                 # we finished finding the current circle
                 current_decomposition_with_circles.append(current_circle)
-                circles_in_each_length_in_decomposition[current_circle_length - 1] += 1  # add 1 to the num of circles this length
+                # add 1 to the num of circles this length
+                circles_in_each_length_in_decomposition[current_circle_length - 1] += 1
                 # adds the circle in sorted mode so the set of the specific length will not add it if its already there:
-                self.unique_circles_in_each_length[current_circle_length - 1].add(current_circle.sort())
+                if not self._is_circle_in_list \
+                            (self.unique_circles_in_each_length[current_circle_length - 1], current_circle):
+                    self.unique_circles_in_each_length[current_circle_length - 1].append(current_circle)
             # we finished finding all the circles for the current decomposition
-            self.decompositions_with_circles.append((current_decomposition_with_circles, circles_in_each_length_in_decomposition))
+            t = (current_decomposition_with_circles, circles_in_each_length_in_decomposition)
+            self.decompositions_with_circles.append(t)
+        print("done")
+
+    def _all_circles_in_length(self, length) -> int:
+        return len(self.unique_circles_in_each_length[length - 1])
+
+    def _print_circle_in_binary(self, circle: list) -> None:  # line_graph printing
+        for e in circle:
+            u0 = bin(e[0][0])[2:].zfill(self.n - 1)
+            u1 = bin(e[0][1])[2:].zfill(self.n - 1)
+            u = u0 + u1[-1]
+            print(u + ' -->', end=' ')
+
+    # public methods
 
     def number_of_decompositions_with_only_one_circle(self) -> int:
         counter = 0
@@ -233,46 +246,28 @@ class LineGraph(Graph):
                 counter += 1
         return counter
 
-    def all_circles_in_length(self, length) -> int:
-        return len(self.unique_circles_in_each_length[length - 1])
-
     def print_all_circles_in_length(self, length) -> None:
-        print("The number of unique circles with length ", length, "is ", len(self.unique_circles_in_each_length[length - 1]))
-        print("And they are:")
-        # Todo: print it (or show them) in a comfortable way
-        raise NotImplementedError
+        print("The number of unique circles with length ", length, "is ", self._all_circles_in_length(length),
+              "\n And they are:")
+        for circle in self.unique_circles_in_each_length[length - 1]:
+            self._print_circle_in_binary(circle)
 
     def print_all_decompositions_circles_sizes(self) -> None:
         for decomp, i in zip(self.decompositions_with_circles, range(len(self.decompositions_with_circles))):
-            print("Decomposition #", str(i+1).zfill(len(str(2**2**self.input_n))), ": ", print(*decomp[1], sep=", "))
-            # input_decompositions_numbers = []
-            # number = int(input("Please enter the numbers of the decompositions you wish to print: "))
-            # print("Please enter the number of total decompositions you wish to print:")
-            # while True:
-            #     number = input()
-            #     try:
-            #         number = int(n)
-            #     except:
-            #         print('Invalid input. Please enter a valid number.')
-            #         continue
-            #     if number == 0:
-            #         break
-            #     if number < 0:
-            #         print('Invalid input. Please enter a valid number.')
-            #         continue
-            #     break
-            # input_decompositions_numbers = list(map(int, input("\nPlease enter, in the next line, all the numbers of the decompositions you wish to print: ").strip().split()))[:number]
+            print("Decomposition #" + str(i + 1).zfill(len(str(2 ** 2 ** self.input_n))) + ": ",
+                  print(*decomp[1], sep=", "))
 
-            # Todo: print the dcompositions accordint to the list "input_decompositions_numbers" from self.decompositions_with_circles[0]
-
-            # Todo: print in an organized manner both print parts in this function (first one maybe in a table, second maybe show graph)
+            # Todo: print the dcompositions accordint to the list "input_decompositions_numbers"
+            #  from self.decompositions_with_circles[0]
+            # Todo: print in an organized manner both print parts in this function
+            #  (first one maybe in a table, second maybe show graph)
 
     def print_decomposition(self, i) -> None:
-        print("The circles in the ", str(i), "-th decomposition are:")
-        for circle in self.decompositions_with_circles[i-1][0]:
+        print("The circles in decomposition number " + str(i) + " are:")
+        for circle in self.decompositions_with_circles[i - 1][0]:
             print(*circle)
 
-    def print_specific_decompositions(self):
+    def print_specific_decompositions(self) -> None:
         input_decompositions_numbers = [int(item) for item in input(
             "Please enter, in the next line, all the numbers of the decompositions you wish to print: ").split()]
         for i in input_decompositions_numbers:
@@ -289,25 +284,10 @@ class DeBruijnGraph(Graph):
         self.n = n  # number of bits of each node
         self.input_n = n
         self.k = n + 1
-        self.N = 2 ** (self.n)  # number of nodes
+        self.N = 2 ** self.n  # number of nodes
         kmers = self.get_kmers_from_sequence(sequence, self.k)
         edges = self.get_edges_from_kmers(kmers)
         self.G = nx.DiGraph(edges)
-        # note: we no longer add ids to edges, we need to find the actual nodes.
-        # when we need to print the edges, we will generate them manually.
-        # it may be slower, need to think about it.
-        # keeping this for legacy in case we need it.
-        """
-        for i in range(0, len(seq)):
-            u = seq[i:i + n]
-            v = seq[i + 1:i + n + 1]
-            u_of_edge = str(u)
-            v_of_edge = str(v)
-            e = seq[i:i + n]
-            self.G.add_node(u_of_edge, id=int(u_of_edge, 2))
-            self.G.add_node(v_of_edge, id=int(v_of_edge, 2))
-            self.G.add_edge(u_of_edge, v_of_edge, id=int(str(e), 2), id_b=str(e))
-        """
 
     @staticmethod
     def get_kmers_from_sequence(sequence, k):
@@ -372,13 +352,13 @@ class DeBruijnGraph(Graph):
         N = self.N
         # we convert the binary representation to decimal
         x1 = int(i, 2)  # i '0i'
-        x2 = int('1' + i, 2)  # i+N/2 '1i'
+        # x2 = int('1' + i, 2)  # i+N/2 '1i'
         y1 = (2 * x1) % N  # 2i
         y2 = (2 * x1 + 1) % N  # 2i+1
         z1 = (2 * y1) % N  # 4i
-        z2 = (2 * y1 + 1) % N  # 4i+1
+        # z2 = (2 * y1 + 1) % N  # 4i+1
         z3 = (2 * y2) % N  # 4i+2
-        z4 = (2 * y2 + 1) % N  # 4i+3
+        # z4 = (2 * y2 + 1) % N  # 4i+3
         # we now find the edges themselves.
 
         # first we remove 2i->4i and 2i+1->4i+2
@@ -399,8 +379,6 @@ class DeBruijnGraph(Graph):
         self.G.add_edge(*edge_to_add, id='hello')  # todo: add the id saved
         edge_to_add = (y2, z1)
         self.G.add_edge(*edge_to_add, id='bye')  # todo: add the id saved
-        # not a de-bruijn graph anymore
-        self.is_de_bruijn = False
 
     def exchange_two(self, i1, i2):
         """
@@ -418,6 +396,15 @@ class DeBruijnGraph(Graph):
 
 
 if __name__ == '__main__':
+    n = 2
+    seq = create_de_bruijn_sequence(n)
+    DBG = DeBruijnGraph(seq, n)
+    # DBG.plot('DBG')
+    line_graph = LineGraph(DBG)
+    # line_graph.plot('line graph before exchange on DBG.')
+    print("number_of_decompositions_with_only_one_circle")
+    print(line_graph.print_specific_decompositions())
+    exit(1)
     print('Please enter the sequence kmer length.\n')
     while True:
         n = input()
@@ -431,12 +418,6 @@ if __name__ == '__main__':
             continue
         break
 
-    seq = create_de_bruijn_sequence(n)
-    DBG = DeBruijnGraph(seq, n)
-    # DBG.plot('DBG')
-    line_graph = LineGraph(DBG)
-    line_graph.find_decompositions()
-    line_graph.plot('line graph before exchange on DBG.')
     exit(0)
     DBG.exchange('1')
     line_graph = LineGraph(DBG)
