@@ -3,6 +3,9 @@ from graphviz import Digraph
 from xlsxwriter import Workbook
 
 
+def binary_to_decimal(n):
+    return int(n, 2)
+
 def create_de_bruijn_sequence(k) -> str:
     """
     An implementation of the FKM algorithm for generating the de Bruijn
@@ -418,18 +421,6 @@ class DeBruijnGraph(Graph):
 
 
 if __name__ == '__main__':
-    n = 2
-    seq = create_de_bruijn_sequence(n)
-    DBG = DeBruijnGraph(seq, n)
-    # DBG.plot('DBG')
-    line_graph = LineGraph(DBG)
-    # line_graph.plot('line graph before exchange on DBG.')
-    # line_graph.print_number_of_decompositions_with_only_one_cycle()
-    # line_graph.print_all_cycles_in_length(2)
-    line_graph.print_all_decompositions_cycles_sizes()
-    # line_graph.print_decomposition(11)
-    # line_graph.print_specific_decompositions()
-    exit(1)
     print('Please enter the sequence kmer length.\n')
     while True:
         n = input()
@@ -442,8 +433,34 @@ if __name__ == '__main__':
             print('Invalid input. Please enter a valid number.')
             continue
         break
-
-    exit(0)
-    DBG.exchange('1')
+    seq = create_de_bruijn_sequence(n)
+    DBG = DeBruijnGraph(seq, n)
+    # DBG.plot('DBG')
+    # line_graph.plot('line graph before exchange on DBG.')
+    print('Please enter the sequence for the UPP exchange, if not needed, enter 0\n')
+    upp_ex = input()
+    if upp_ex != 0:
+        upp_ex = str(binary_to_decimal(upp_ex))
+        print(upp_ex)
+        DBG.exchange(upp_ex)
+        print('Please enter another sequence for the UPP exchange, if not needed, enter 0\n')
+        upp_ex = input()
+        if upp_ex != 0:
+            DBG.exchange(str(binary_to_decimal(upp_ex)))
     line_graph = LineGraph(DBG)
-    line_graph.plot('line graph after exchange on DBG.')
+    # line_graph.plot('line graph after exchange on DBG.')
+    line_graph.print_number_of_decompositions_with_only_one_cycle()
+    print('Please enter the length of the cycles, in all the decompositions, you want printed, if not needed, enter 0\n')
+    cycle_size = input()
+    if cycle_size != 0:
+        line_graph.print_all_cycles_in_length(int(cycle_size))
+    print('Do you want to export to Exel file type, all the decomposition cycles sizes? Y / N \n')
+    yes_no = input()
+    if yes_no == 'Y' or yes_no == 'y':
+        line_graph.print_all_decompositions_cycles_sizes()
+    # line_graph.print_decomposition(11)
+    line_graph.print_specific_decompositions()
+    exit(1)
+
+
+
