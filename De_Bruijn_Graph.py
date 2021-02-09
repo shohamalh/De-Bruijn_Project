@@ -1,10 +1,12 @@
 import networkx as nx
 from graphviz import Digraph
 from xlsxwriter import Workbook
+import os
 
 
 def binary_to_decimal(n):
     return int(n, 2)
+
 
 def create_de_bruijn_sequence(k) -> str:
     """
@@ -50,7 +52,7 @@ class Graph:
     def plot(self, filename='graph'):
         f = Digraph(filename=filename + '.gv')  # Digraph (name, filename to save)
         f.attr(rankdir='LR', size='8,5')  # horizontal and not vertical
-        f.attr('node', shape='cycle')
+        f.attr('node', shape='circle')
         edge_label = None
         for e in self.G.edges():
             if isinstance(self, DeBruijnGraph):  # if the graph is de-bruijn
@@ -250,7 +252,7 @@ class LineGraph(Graph):
         for curr_decomposition_with_cycles in self.decompositions_with_cycles:
             if curr_decomposition_with_cycles[1][-1] == 1:  # if it has a cycle in size |E|
                 counter += 1
-        print("There are ", counter, " decompositions with only one cycle in the line graph.")
+        print(f'There are {counter} decompositions with only one cycle in the line graph.')
 
     def print_all_cycles_in_length(self, length) -> None:
         print("The number of unique cycles with length", length, "is", self._all_cycles_in_length(length),
@@ -371,6 +373,7 @@ class DeBruijnGraph(Graph):
         """
         # check that there were given n-1 bits
         assert (isinstance(i, str))
+
         if len(i) != self.n - 1:
             raise ValueError
 
@@ -405,14 +408,6 @@ class DeBruijnGraph(Graph):
         edge_to_add = (y2, z1)
         self.G.add_edge(*edge_to_add, id='bye')  # todo: add the id saved
 
-    def exchange_two(self, i1, i2):
-        """
-        performs two exchange operations on given bits i1 and i2.
-        :rtype: object
-        """
-        self.exchange(i1)
-        self.exchange(i2)
-
     @property
     def __str__(self):
         res = 'There are ' + str(self.G.number_of_nodes) + ' nodes and ' \
@@ -421,46 +416,56 @@ class DeBruijnGraph(Graph):
 
 
 if __name__ == '__main__':
-    print('Please enter the sequence kmer length.\n') # 3, 4 or 5
-    while True:
-        n = input()
-        try:
-            n = int(n)
-        except:
-            print('Invalid input. Please enter a valid number.')
-            continue
-        if n < 1:
-            print('Invalid input. Please enter a valid number.')
-            continue
-        break
-    seq = create_de_bruijn_sequence(n)
-    DBG = DeBruijnGraph(seq, n)
-    # DBG.plot('DBG')
-    # line_graph.plot('line graph before exchange on DBG.')
-    print('Please enter the sequence for the UPP exchange, if not needed, enter 0\n')
-    upp_ex = input()
-    if upp_ex != 0:
-        upp_ex = str(binary_to_decimal(upp_ex))
-        print(upp_ex)
-        DBG.exchange(upp_ex)
-        print('Please enter another sequence for the UPP exchange, if not needed, enter 0\n')
-        upp_ex = input()
-        if upp_ex != 0:
-            DBG.exchange(str(binary_to_decimal(upp_ex)))
-    line_graph = LineGraph(DBG)
-    # line_graph.plot('line graph after exchange on DBG.')
-    line_graph.print_number_of_decompositions_with_only_one_cycle()
-    print('Please enter the length of the cycles, in all the decompositions, you want printed, if not needed, enter 0\n')
-    cycle_size = input()
-    if cycle_size != 0:
-        line_graph.print_all_cycles_in_length(int(cycle_size))
-    print('Do you want to export to Exel file type, all the decomposition cycles\' sizes? Y / N \n')
-    yes_no = input()
-    if yes_no == 'Y' or yes_no == 'y':
-        line_graph.print_all_decompositions_cycles_sizes()
-    # line_graph.print_decomposition(11)
-    line_graph.print_specific_decompositions()
-    exit(1)
-
-
-
+    flag = True
+    while flag:
+        print('Please enter the sequence kmer length.')  # 3, 4 or 5
+        while True:
+            n = input()
+            try:
+                n = int(n)
+            except:
+                print('Invalid input. Please enter a valid number.')
+                continue
+            if n < 1:
+                print('Invalid input. Please enter a valid number.')
+                continue
+            break
+        seq = create_de_bruijn_sequence(n)
+        DBG = DeBruijnGraph(seq, n)
+        yes_no = input('Do you want to print the De-Bruijn Graph? Y / N \n')
+        if yes_no == 'Y' or yes_no == 'y':
+            DBG.plot('DBG')
+        line_graph = LineGraph(DBG)
+        yes_no = input('Do you want to print the Line-Graph? Y / N \n')
+        if yes_no == 'Y' or yes_no == 'y':
+            line_graph.plot('Line Graph of the DBG.')
+        upp_ex = input('Please enter the sequence for the UPP exchange, if not needed, enter 0:\n')
+        while len(upp_ex) != n - 1 and upp_ex != '0':
+            upp_ex = input('Please enter a correct sequence for the UPP exchange:\n')
+        if upp_ex != '0':
+            DBG.exchange(upp_ex)
+            upp_ex = input('Please enter another sequence for the UPP exchange, if not needed, enter 0\n')
+            while len(upp_ex) != n - 1 and upp_ex != '0':
+                upp_ex = input('Please enter a correct sequence for the UPP exchange:\n')
+            if upp_ex != '0':
+                DBG.exchange(upp_ex)
+            line_graph = LineGraph(DBG)
+            yes_no = input('Do you want to print the Line-Graph after the exchange? Y / N\n')
+            if yes_no == 'Y' or yes_no == 'y':
+                line_graph.plot('Line Graph after the exchange on the DBG.')
+        line_graph.print_number_of_decompositions_with_only_one_cycle()
+        cycle_size = input('Please enter the length of the cycles in all '
+                           'the decompositions you want printed, if not needed, enter 0:\n')
+        if cycle_size != '0':
+            line_graph.print_all_cycles_in_length(int(cycle_size))
+        yes_no = input('Do you want to export to Exel file type, all the decomposition cycles\' sizes? Y / N\n')
+        if yes_no == 'Y' or yes_no == 'y':
+            line_graph.print_all_decompositions_cycles_sizes()
+            yes_no = input('Do you want to open the decompositions\' file? Y / N\n')
+            if yes_no == 'Y' or yes_no == 'y':
+                os.system('decompositions.xlsx')
+        line_graph.print_specific_decompositions()
+        rerun = input('Do you wish to start over? Y / N\n')
+        if rerun.lower() == 'n':
+            flag = False
+    print('Have a nice day :)')
