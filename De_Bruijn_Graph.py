@@ -250,7 +250,7 @@ class LineGraph(Graph):
         for curr_decomposition_with_cycles in self.decompositions_with_cycles:
             if curr_decomposition_with_cycles[1][-1] == 1:  # if it has a cycle in size |E|
                 counter += 1
-        print("There are", counter, "decompositions with only one cycle.")
+        print("There are ", counter, " decompositions with only one cycle in the line graph.")
 
     def print_all_cycles_in_length(self, length) -> None:
         print("The number of unique cycles with length", length, "is", self._all_cycles_in_length(length),
@@ -421,7 +421,7 @@ class DeBruijnGraph(Graph):
 
 
 if __name__ == '__main__':
-    print('Please enter the sequence kmer length.\n')
+    print('Please enter the sequence kmer length.\n') # 3, 4 or 5
     while True:
         n = input()
         try:
@@ -454,7 +454,7 @@ if __name__ == '__main__':
     cycle_size = input()
     if cycle_size != 0:
         line_graph.print_all_cycles_in_length(int(cycle_size))
-    print('Do you want to export to Exel file type, all the decomposition cycles sizes? Y / N \n')
+    print('Do you want to export to Exel file type, all the decomposition cycles\' sizes? Y / N \n')
     yes_no = input()
     if yes_no == 'Y' or yes_no == 'y':
         line_graph.print_all_decompositions_cycles_sizes()
