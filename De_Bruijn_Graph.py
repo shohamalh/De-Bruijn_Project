@@ -342,7 +342,7 @@ class DeBruijnGraph(Graph):
         return kmers
 
     @staticmethod
-    def get_edges_from_kmers(kmers):  # todo: add labels
+    def get_edges_from_kmers(kmers):
         """
         Every possible (k-1)mer (n-1 suffix and prefix of kmers) is assigned
         to a node, and we connect one node to another if the (k-1)mer overlaps
@@ -362,7 +362,6 @@ class DeBruijnGraph(Graph):
                     if k1[:-1] == k2[1:]:
                         # edges.add((k2[:-1], k1[:-1]))
                         edges.add((int(k2[:-1], 2), int(k1[:-1], 2)))
-                    # todo: add edge label
 
         return edges
 
@@ -393,20 +392,17 @@ class DeBruijnGraph(Graph):
         # work around since G doesn't save the nodes with 0b literal - iterating over all edges and comparing.
         for e in self.G.edges():
             if e == (y1, z1):
-                # todo: store edge ID
                 self.G.remove_edge(*e)
                 break
         for e in self.G.edges():
             if e == (y2, z3):
-                # todo: store edge ID
                 self.G.remove_edge(*e)
                 break
 
-        # next we add 2i->4i+2 and 2i+1->4i  # todo: problem, how do we define names for 2i->4i+2? It's not De-Bruijn like.
         edge_to_add = (y1, z3)
-        self.G.add_edge(*edge_to_add, id='hello')  # todo: add the id saved
+        self.G.add_edge(*edge_to_add)
         edge_to_add = (y2, z1)
-        self.G.add_edge(*edge_to_add, id='bye')  # todo: add the id saved
+        self.G.add_edge(*edge_to_add)
 
     @property
     def __str__(self):
@@ -416,6 +412,8 @@ class DeBruijnGraph(Graph):
 
 
 if __name__ == '__main__':
+    os.environ["PATH"] += os.pathsep + f'C:/Program Files/Graphviz/bin'
+
     flag = True
     while flag:
         print('Please enter the sequence kmer length.')  # 3, 4 or 5
